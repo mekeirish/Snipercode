@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sniper Editor Pro - Safe Edition</title>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        :root { 
+            --bg: #121212; 
+            --card-bg: #1e1e1e; 
+            --border: #333333; 
+            --accent: #ffca28; 
+            --text: #e0e0e0; 
+            --danger: #ff5252; 
+            --success: #4caf50; 
+            --warning: #ffca28; 
+        }
+        
+        body { font-family: -apple-system, system-ui, sans-serif; background-color: var(--bg); margin: 0; padding: 15px 10px; color: var(--text); overflow-x: hidden; }
+        .container { width: 100%; max-width: 850px; margin: 0 auto; padding-bottom: 80px; }
+        
+        .card-main { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        
+        .input-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+        
+        /* Champ Token avec indicateur de sécurité */
+        .token-container { position: relative; width: 100%; }
+        .token-container::after { content: '🔒'; position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.5; }
+
+        input { width: 100%; border: 1px solid var(--border); padding: 14px; border-radius: 8px; background: #000; color: var(--accent); font-size: 16px; outline: none; border-left: 3px solid var(--accent); }
+        input::placeholder { color: #555; }
+
+        .action-group { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        
+        .btn { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; padding: 14px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+        .btn:active { transform: scale(0.98); opacity: 0.8; }
+        
+        .btn-primary { background: var(--accent); color: #000; }
+        .btn-update { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+        .btn-cache { background: #333; color: #888; font-size: 0.7rem; }
+        .btn-success { background: var(--accent); color: #000; flex: 2; }
+        .btn-history { background: #262626; color: #aaa; border: 1px solid var(--border); flex: 1; }
+        .btn-cancel { background: #444; color: white; }
+        
+        .status-wrapper { display: flex; align-items: center; gap: 15px; width: 100%; justify-content: center; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #333; transition: 0.3s; flex-shrink: 0; }
+        .status-dot.loading { background: var(--warning) !important; animation: pulse-yellow 0.8s infinite alternate; box-shadow: 0 0 15px var(--warning); }
+        .status-dot.success { background: var(--success) !important; box-shadow: 0 0 15px var(--success); }
+        .status-dot.error { background: var(--danger) !important; box-shadow: 0 0 15px var(--danger); }
+
+        @keyframes pulse-yellow { from { opacity: 0.3; transform: scale(0.8); } to { opacity: 1; transform: scale(1.1); } }
+
+        .file-item { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; overflow: hidden; }
+        .file-info { padding: 12px 15px; background: #252525; border-bottom: 1px solid var(--border); }
+        .file-label { font-family: monospace; font-weight: bold; color: var(--accent); font-size: 0.9rem; }
+        
+        .search-row { display: flex; gap: 8px; padding: 10px; background: #161616; align-items: center; }
+        .search-input { flex: 1; height: 40px; background: #000; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0 12px; }
+        .search-count { font-size: 0.75rem; color: #666; min-width: 50px; text-align: center; font-family: monospace; }
+        
+        .editor-box { width: 100%; height: 400px; background: #0a0a0a; color: #bbb; border: none; padding: 15px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 20px; outline: none; resize: vertical; }
+
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; padding: 12px 24px; border-radius: 4px; display: none; z-index: 3000; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        #confirmBar { position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); width: calc(100% - 30px); max-width: 500px; background: #222; padding: 20px; border-radius: 12px; display: none; flex-direction: column; gap: 15px; border: 2px solid var(--accent); z-index: 2000; }
+        
+        footer { text-align: center; padding: 40px 10px; font-size: 0.75rem; color: #444; text-transform: uppercase; letter-spacing: 2px; }
+    </style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4b6cb7">
+<link rel="apple-touch-icon" href="icon.png"></head>
+<body onload="loadConfig()">
+
+<div id="toast"></div>
+
+<div id="confirmBar">
+    <span id="confirmMsg" style="text-align:center; color:white; font-weight:bold;">DÉPLOYER ?</span>
+    <div style="display:flex; gap:10px; width:100%;">
+        <button class="btn btn-cancel" style="flex:1" onclick="closeConfirm()">ANNULER</button>
+        <button class="btn btn-success" style="flex:1" id="finalSaveBtn">CONFIRMER</button>
+    </div>
+</div>
+
+<div class="container">
+    <div class="card-main">
+        <div class="input-group">
+            <div class="token-container">
+                <input type="password" id="ghToken" placeholder="GitHub Token (Sauvegardé localement)" oninput="saveConfig()">
+            </div>
+            <input type="text" id="repoName" placeholder="pseudo/repository" oninput="saveConfig()">
+        </div>
+        <div class="action-group">
+            <button class="btn btn-primary" onclick="fetchRepo()">CHARGER LE PROJET</button>
+            <div class="status-wrapper">
+                <div class="status-dot status-indicator"></div>
+                <button class="btn btn-update" style="flex:1" onclick="openProductionSite()">🌍 VOIR LE SITE LIVE</button>
+                <div class="status-dot status-indicator"></div>
+            </div>
+            <button class="btn btn-cache" onclick="fullReset()">RESET & CLEAR CACHE</button>
+        </div>
+    </div>
+    <div id="fileList"></div>
+    <footer>Sniper Engine — 2026 — Paris</footer>
+</div>
+
+<script>
+    let filesData = {};
+    let globalRepoExact = ""; 
+    let statusInterval = null;
+    let lastRunIdBeforeUpdate = null;
+
+    // --- Gestion Sécurisée du Stockage ---
+    function saveConfig() {
+        localStorage.setItem('sniper_token', document.getElementById('ghToken').value);
+        localStorage.setItem('sniper_repo', document.getElementById('repoName').value);
+    }
+
+    function loadConfig() {
+        const savedToken = localStorage.getItem('sniper_token');
+        const savedRepo = localStorage.getItem('sniper_repo');
+        if (savedToken) document.getElementById('ghToken').value = savedToken;
+        if (savedRepo) document.getElementById('repoName').value = savedRepo;
+    }
+
+    function fullReset() {
+        if(confirm("Voulez-vous vraiment effacer le token et le cache ?")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    // --- Logique Application ---
+    function notify(m) { const t = document.getElementById('toast'); t.innerText = m; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3000); }
+    function openConfirm(msg, callback) { document.getElementById('confirmMsg').innerText = msg; document.getElementById('confirmBar').style.display = 'flex'; document.getElementById('finalSaveBtn').onclick = () => { callback(); closeConfirm(); }; }
+    function closeConfirm() { document.getElementById('confirmBar').style.display = 'none'; }
+
+    function setStatusClass(className) {
+        document.querySelectorAll('.status-indicator').forEach(dot => dot.className = "status-dot status-indicator " + className);
+    }
+
+    function openProductionSite() {
+        if (!globalRepoExact) return notify("⚠️ Aucun repo chargé");
+        window.open(`https://${globalRepoExact.split('/')[0].toLowerCase()}.github.io/${globalRepoExact.split('/')[1]}/?t=${Date.now()}`, '_blank');
+    }
+
+    async function updateActionStatus() {
+        if (!globalRepoExact) return;
+        const token = document.getElementById('ghToken').value;
+        try {
+            const res = await fetch(`https://api.github.com/repos/${globalRepoExact}/actions/runs?per_page=1`, { headers: { 'Authorization': `token ${token}` } });
+            const data = await res.json();
+            if (data.workflow_runs && data.workflow_runs.length > 0) {
+                const lastRun = data.workflow_runs[0];
+                if (lastRun.id === lastRunIdBeforeUpdate) { setStatusClass("loading"); return; }
+                if (lastRun.status === "completed") {
+                    setStatusClass(lastRun.conclusion === "success" ? "success" : "error");
+                    lastRunIdBeforeUpdate = lastRun.id;
+                    clearInterval(statusInterval);
+                    if(lastRun.conclusion === "success") notify("✅ DÉPLOIEMENT RÉUSSI");
+                } else { setStatusClass("loading"); }
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function startStatusPolling() {
+        setStatusClass("loading");
+        clearInterval(statusInterval);
+        statusInterval = setInterval(updateActionStatus, 4000);
+    }
+
+    async function fetchRepo() {
+        const token = document.getElementById('ghToken').value;
+        const repoInput = document.getElementById('repoName').value.trim();
+        if(!token || !repoInput) return notify("⚠️ Identifiants manquants");
+        try {
+            const repoMetaRes = await fetch(`https://api.github.com/repos/${repoInput}`, { headers: { 'Authorization': `token ${token}` } });
+            const repoMetaData = await repoMetaRes.json();
+            globalRepoExact = repoMetaData.full_name;
+            
+            const runRes = await fetch(`https://api.github.com/repos/${globalRepoExact}/actions/runs?per_page=1`, { headers: { 'Authorization': `token ${token}` } });
+            const runData = await runRes.json();
+            if(runData.workflow_runs && runData.workflow_runs[0]) {
+                lastRunIdBeforeUpdate = runData.workflow_runs[0].id;
+                const last = runData.workflow_runs[0];
+                setStatusClass(last.status === "completed" ? (last.conclusion === "success" ? "success" : "error") : "loading");
+            }
+
+            const res = await fetch(`https://api.github.com/repos/${globalRepoExact}/contents/`, { headers: { 'Authorization': `token ${token}` } });
+            const files = await res.json();
+            document.getElementById('fileList').innerHTML = "";
+            for (let f of files) {
+                if (f.type === 'file' && !f.name.match(/\.(png|jpg|ico|gif|webp|woff2)$/i)) {
+                    const fileRes = await fetch(f.url, { headers: { 'Authorization': `token ${token}` } });
+                    const d = await fileRes.json();
+                    const content = decodeURIComponent(escape(atob(d.content)));
+                    filesData[f.sha] = { content, path: f.path, name: f.name, matches: [], currentIndex: -1 }; 
+                    renderFileCard(f, content);
+                }
+            }
+            notify("PROJET SYNCHRONISÉ");
+        } catch(e) { notify("ERREUR DE CONNEXION"); }
+    }
+
+    function renderFileCard(f, content) {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.innerHTML = `
+            <div class="file-info"><span class="file-label">MOD : ${f.name}</span></div>
+            <div class="search-row">
+                <input type="text" id="in-${f.sha}" class="search-input" placeholder="RECHERCHER..." oninput="scan('${f.sha}')">
+                <div class="search-count" id="count-${f.sha}">0/0</div>
+            </div>
+            <textarea id="txt-${f.sha}" class="editor-box" spellcheck="false" oninput="filesData['${f.sha}'].content = this.value">${content}</textarea>
+            <div style="padding:15px; background:#1e1e1e; display:flex; gap:10px;">
+                <button class="btn btn-success" onclick="prepareSave('${f.sha}')">UPDATE CORE</button>
+            </div>
+        `;
+        document.getElementById('fileList').appendChild(div);
+    }
+
+    async function executeUpdate(sha) {
+        const token = document.getElementById('ghToken').value;
+        const file = filesData[sha];
+        try {
+            const check = await fetch(`https://api.github.com/repos/${globalRepoExact}/contents/${file.path}`, { headers: { 'Authorization': `token ${token}` } });
+            const latest = await check.json();
+            const res = await fetch(`https://api.github.com/repos/${globalRepoExact}/contents/${file.path}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: "Sniper Core Update", content: btoa(unescape(encodeURIComponent(file.content))), sha: latest.sha })
+            });
+            if(res.ok) { notify("PUSH RÉUSSI"); startStatusPolling(); }
+        } catch (e) { notify("ERREUR PUSH"); }
+    }
+
+    function scan(sha) {
+        const q = document.getElementById('in-'+sha).value.trim();
+        const txt = filesData[sha].content;
+        if(q.length < 1) { filesData[sha].matches = []; updateCounter(sha); return; }
+        const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        let matches = [], m;
+        while ((m = regex.exec(txt)) !== null) { matches.push({s: m.index, e: m.index + m[0].length}); }
+        filesData[sha].matches = matches;
+        filesData[sha].currentIndex = matches.length > 0 ? 0 : -1;
+        updateCounter(sha);
+    }
+    function updateCounter(sha) { document.getElementById('count-'+sha).innerText = filesData[sha].matches.length > 0 ? `${filesData[sha].currentIndex + 1}/${filesData[sha].matches.length}` : "0/0"; }
+    function prepareSave(sha) { openConfirm(`DÉPLOYER LES MODIFICATIONS ?`, () => executeUpdate(sha)); }
+</script>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
+</body>
+</html>
