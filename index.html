@@ -69,6 +69,9 @@
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4b6cb7">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4b6cb7">
 <link rel="apple-touch-icon" href="icon.png"></head>
 <body onload="loadConfig()">
 
@@ -248,6 +251,8 @@
     function updateCounter(sha) { document.getElementById('count-'+sha).innerText = filesData[sha].matches.length > 0 ? `${filesData[sha].currentIndex + 1}/${filesData[sha].matches.length}` : "0/0"; }
     function prepareSave(sha) { openConfirm(`DÉPLOYER LES MODIFICATIONS ?`, () => executeUpdate(sha)); }
 </script>
+
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
 
 <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
 </body>
