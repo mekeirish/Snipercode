@@ -214,6 +214,9 @@
     function renderFileCard(f, content) {
         const div = document.createElement('div');
         div.className = 'file-item';
+        
+        // CORRECTION ICI : On n'injecte plus le ${content} dans le innerHTML
+        // On laisse le <textarea> vide dans le template
         div.innerHTML = `
             <div class="file-info"><span class="file-label">MOD : ${f.name}</span></div>
             <div class="search-row">
@@ -223,7 +226,7 @@
                 <button class="search-btn" onclick="nextMatch('${f.sha}')">▼</button>
                 <div class="search-count" id="count-${f.sha}">0/0</div>
             </div>
-            <textarea id="txt-${f.sha}" class="editor-box" spellcheck="false" oninput="filesData['${f.sha}'].content = this.value">${content}</textarea>
+            <textarea id="txt-${f.sha}" class="editor-box" spellcheck="false" oninput="filesData['${f.sha}'].content = this.value"></textarea>
             <div id="hist-${f.sha}" class="history-list"></div>
             <div style="padding:15px; background:#1e1e1e; display:flex; gap:10px;">
                 <button class="btn btn-history" onclick="toggleHistory('${f.sha}')">HISTORIQUE</button>
@@ -231,6 +234,9 @@
             </div>
         `;
         document.getElementById('fileList').appendChild(div);
+        
+        // On injecte le texte de manière 100% sécurisée via la propriété .value
+        document.getElementById(`txt-${f.sha}`).value = content;
     }
 
     // --- Système de Recherche & Surlignage ---
