@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sniper Editor Pro - Safe Edition</title>
+    <title>Sniper Editor Pro - Safe & Complete Edition</title>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         :root { 
@@ -24,7 +24,6 @@
         
         .input-group { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
         
-        /* Champ Token avec indicateur de sécurité */
         .token-container { position: relative; width: 100%; }
         .token-container::after { content: '🔒'; position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.5; }
 
@@ -55,11 +54,21 @@
         .file-info { padding: 12px 15px; background: #252525; border-bottom: 1px solid var(--border); }
         .file-label { font-family: monospace; font-weight: bold; color: var(--accent); font-size: 0.9rem; }
         
+        /* Contrôles de Recherche */
         .search-row { display: flex; gap: 8px; padding: 10px; background: #161616; align-items: center; }
         .search-input { flex: 1; height: 40px; background: #000; color: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0 12px; }
-        .search-count { font-size: 0.75rem; color: #666; min-width: 50px; text-align: center; font-family: monospace; }
+        .search-btn { background: #333; color: var(--accent); border: 1px solid var(--border); padding: 0 12px; border-radius: 6px; cursor: pointer; height: 40px; font-weight: bold; font-size: 0.8rem; }
+        .search-btn:active { background: #444; }
+        .search-count { font-size: 0.75rem; color: #666; min-width: 40px; text-align: center; font-family: monospace; }
         
+        /* Historique */
+        .history-list { background: #000; border-radius: 0; display: none; border-bottom: 1px solid var(--border); overflow: hidden; }
+        .history-item { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.75rem; cursor: pointer; }
+        .history-item:hover { background: #1a1a1a; }
+        .history-date { color: var(--accent); font-weight: bold; margin-bottom: 4px; }
+
         .editor-box { width: 100%; height: 400px; background: #0a0a0a; color: #bbb; border: none; padding: 15px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 20px; outline: none; resize: vertical; }
+        .editor-box:focus { color: #fff; }
 
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; padding: 12px 24px; border-radius: 4px; display: none; z-index: 3000; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         #confirmBar { position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); width: calc(100% - 30px); max-width: 500px; background: #222; padding: 20px; border-radius: 12px; display: none; flex-direction: column; gap: 15px; border: 2px solid var(--accent); z-index: 2000; }
@@ -67,12 +76,6 @@
         footer { text-align: center; padding: 40px 10px; font-size: 0.75rem; color: #444; text-transform: uppercase; letter-spacing: 2px; }
     </style>
 
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4b6cb7">
-<link rel="apple-touch-icon" href="icon.png">
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#4b6cb7">
-<link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4b6cb7">
 <link rel="apple-touch-icon" href="icon.png"></head>
@@ -214,17 +217,98 @@
         div.innerHTML = `
             <div class="file-info"><span class="file-label">MOD : ${f.name}</span></div>
             <div class="search-row">
-                <input type="text" id="in-${f.sha}" class="search-input" placeholder="RECHERCHER..." oninput="scan('${f.sha}')">
+                <input type="text" id="in-${f.sha}" class="search-input" placeholder="RECHERCHER...">
+                <button class="search-btn" onclick="scan('${f.sha}')">FIND</button>
+                <button class="search-btn" onclick="prevMatch('${f.sha}')">▲</button>
+                <button class="search-btn" onclick="nextMatch('${f.sha}')">▼</button>
                 <div class="search-count" id="count-${f.sha}">0/0</div>
             </div>
             <textarea id="txt-${f.sha}" class="editor-box" spellcheck="false" oninput="filesData['${f.sha}'].content = this.value">${content}</textarea>
+            <div id="hist-${f.sha}" class="history-list"></div>
             <div style="padding:15px; background:#1e1e1e; display:flex; gap:10px;">
+                <button class="btn btn-history" onclick="toggleHistory('${f.sha}')">HISTORIQUE</button>
                 <button class="btn btn-success" onclick="prepareSave('${f.sha}')">UPDATE CORE</button>
             </div>
         `;
         document.getElementById('fileList').appendChild(div);
     }
 
+    // --- Système de Recherche & Surlignage ---
+    function scan(sha) {
+        const q = document.getElementById('in-'+sha).value;
+        const txt = filesData[sha].content;
+        if(!q) { filesData[sha].matches = []; filesData[sha].currentIndex = -1; updateCounter(sha); return; }
+        
+        const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        let matches = [], m;
+        while ((m = regex.exec(txt)) !== null) { matches.push({s: m.index, e: m.index + m[0].length}); }
+        
+        filesData[sha].matches = matches;
+        filesData[sha].currentIndex = matches.length > 0 ? 0 : -1;
+        updateCounter(sha);
+        if(matches.length > 0) focusMatch(sha);
+    }
+
+    function focusMatch(sha) {
+        const data = filesData[sha];
+        if(data.matches.length === 0 || data.currentIndex < 0) return;
+        const match = data.matches[data.currentIndex];
+        const ta = document.getElementById('txt-'+sha);
+        ta.focus();
+        ta.setSelectionRange(match.s, match.e);
+        updateCounter(sha);
+    }
+
+    function nextMatch(sha) {
+        const data = filesData[sha];
+        if(data.matches.length === 0) return;
+        data.currentIndex = (data.currentIndex + 1) % data.matches.length;
+        focusMatch(sha);
+    }
+
+    function prevMatch(sha) {
+        const data = filesData[sha];
+        if(data.matches.length === 0) return;
+        data.currentIndex = (data.currentIndex - 1 + data.matches.length) % data.matches.length;
+        focusMatch(sha);
+    }
+
+    function updateCounter(sha) { 
+        document.getElementById('count-'+sha).innerText = filesData[sha].matches.length > 0 ? `${filesData[sha].currentIndex + 1}/${filesData[sha].matches.length}` : "0/0"; 
+    }
+
+    // --- Système d'Historique ---
+    async function toggleHistory(sha) {
+        const historyDiv = document.getElementById(`hist-${sha}`);
+        if(historyDiv.style.display === 'block') { historyDiv.style.display = 'none'; return; }
+        const token = document.getElementById('ghToken').value;
+        const file = filesData[sha];
+        notify("LECTURE LOGS...");
+        try {
+            const res = await fetch(`https://api.github.com/repos/${globalRepoExact}/commits?path=${file.path}&per_page=5`, { headers: { 'Authorization': `token ${token}` } });
+            const commits = await res.json();
+            historyDiv.innerHTML = commits.map(c => `<div class="history-item" onclick="loadOldVersion('${sha}', '${c.sha}')"><div class="history-date">${new Date(c.commit.author.date).toLocaleString()}</div><div style="color:#666">${c.commit.message}</div></div>`).join('') || '<div class="history-item">Aucun log</div>';
+            historyDiv.style.display = 'block';
+        } catch(e) { notify("ERREUR LOGS"); }
+    }
+
+    async function loadOldVersion(sha, commitSha) {
+        const token = document.getElementById('ghToken').value;
+        const file = filesData[sha];
+        try {
+            const res = await fetch(`https://api.github.com/repos/${globalRepoExact}/contents/${file.path}?ref=${commitSha}`, { headers: { 'Authorization': `token ${token}` } });
+            const data = await res.json();
+            const oldContent = decodeURIComponent(escape(atob(data.content)));
+            document.getElementById(`txt-${sha}`).value = oldContent;
+            filesData[sha].content = oldContent;
+            notify("VERSION RESTAURÉE");
+            document.getElementById(`hist-${sha}`).style.display = 'none';
+        } catch(e) { notify("ERREUR RESTAURATION"); }
+    }
+
+    // --- Sauvegarde ---
+    function prepareSave(sha) { openConfirm(`DÉPLOYER LES MODIFICATIONS ?`, () => executeUpdate(sha)); }
+    
     async function executeUpdate(sha) {
         const token = document.getElementById('ghToken').value;
         const file = filesData[sha];
@@ -239,25 +323,7 @@
             if(res.ok) { notify("PUSH RÉUSSI"); startStatusPolling(); }
         } catch (e) { notify("ERREUR PUSH"); }
     }
-
-    function scan(sha) {
-        const q = document.getElementById('in-'+sha).value.trim();
-        const txt = filesData[sha].content;
-        if(q.length < 1) { filesData[sha].matches = []; updateCounter(sha); return; }
-        const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-        let matches = [], m;
-        while ((m = regex.exec(txt)) !== null) { matches.push({s: m.index, e: m.index + m[0].length}); }
-        filesData[sha].matches = matches;
-        filesData[sha].currentIndex = matches.length > 0 ? 0 : -1;
-        updateCounter(sha);
-    }
-    function updateCounter(sha) { document.getElementById('count-'+sha).innerText = filesData[sha].matches.length > 0 ? `${filesData[sha].currentIndex + 1}/${filesData[sha].matches.length}` : "0/0"; }
-    function prepareSave(sha) { openConfirm(`DÉPLOYER LES MODIFICATIONS ?`, () => executeUpdate(sha)); }
 </script>
-
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
-
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
 
 <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));}</script>
 </body>
